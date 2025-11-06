@@ -8,8 +8,90 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - run: |
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      
+      - name: build and test
+        run: |
               docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
               docker build -t naveen/react-test -f Dockerfile.dev .
               docker run -e CI=true naveen/react-test npm test
+      
+      - name: package source
+        run: zip -r deploy.zip . -x '*.git*'
+      
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: Frontend
+          environment_name: Frontend-env
+          existing_bucket_name: elasticbeanstalk-eu-west-2-389050749574
+          region: eu-west-2
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
+
+
+# name: CI/CD Pipeline
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   # 🧪 1️⃣ Build and Test Docker image
+#   build-and-test:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v3
+
+#       - name: Log in to Docker Hub
+#         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+#       - name: Build Docker image
+#         run: docker build -t cygnetops/react-test -f Dockerfile.dev .
+
+#       - name: Run tests inside container
+#         run: docker run -e CI=true cygnetops/react-test npm test
+
+
+#   # 📦 2️⃣ Package application for deployment
+#   package:
+#     runs-on: ubuntu-latest
+#     needs: build-and-test   # ✅ Waits for tests to pass before packaging
+
+#     steps:
+#       - uses: actions/checkout@v3
+
+#       - name: Generate deployment package
+#         run: zip -r deploy.zip . -x '*.git*'
+
+#       - name: Upload artifact for next job
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: deploy-package
+#           path: deploy.zip
+
+
+#   # 🚀 3️⃣ Deploy to Elastic Beanstalk
+#   deploy:
+#     runs-on: ubuntu-latest
+#     needs: package   # ✅ Waits for package to finish
+
+#     steps:
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: deploy-package
+
+#       - name: Deploy to Elastic Beanstalk
+#         uses: einaregilsson/beanstalk-deploy@v18
+#         with:
+#           application_name: docker-gh
+#           environment_name: Dockergh-env
+#           existing_bucket_name: elasticbeanstalk-us-east-1-923445559289
+#           region: us-east-1
+#           version_label: ${{ github.sha }}
+#           deployment_package: deploy.zip
